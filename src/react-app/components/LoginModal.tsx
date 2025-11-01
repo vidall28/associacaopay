@@ -39,7 +39,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             Área Administrativa
           </h1>
           <p className="text-gray-600">
-            Faça login para gerenciar a AssociaçãoPay
+            Faça login para gerenciar a ArvuPay
           </p>
         </div>
 

@@ -102,7 +102,7 @@ export default function Home() {
                 <Wallet className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">AssociaçãoPay</h1>
+                <h1 className="text-2xl font-bold text-gray-900">ArvuPay</h1>
                 <p className="text-gray-600">Carteira Pública de Mensalidades</p>
               </div>
             </div>

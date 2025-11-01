@@ -1,10 +1,16 @@
-## AssociaçãoPay
+## ArvuPay
 
-This app was created using https://getmocha.com.
-Need help or want to join the community? Join our [Discord](https://discord.gg/shDEGBSe2d).
+Sistema de gerenciamento de pagamentos de mensalidades da associação.
 
-To run the devserver:
-```
+## Como executar o projeto
+
+Para rodar o servidor de desenvolvimento:
+```bash
 npm install
 npm run dev
+```
+
+Para fazer o build de produção:
+```bash
+npm run build
 ```
