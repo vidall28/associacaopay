@@ -47,22 +47,25 @@ export default function MembersList({ members, onRefresh }: MembersListProps) {
   };
 
   const handleDeleteMember = async (memberId: number) => {
-    if (!confirm('Tem certeza que deseja desativar este membro?')) return;
+    if (!confirm('Tem certeza que deseja remover este membro?')) return;
 
     try {
       const { error } = await supabase
         .from('members')
-        .update({ is_active: false })
+        .delete()
         .eq('id', memberId);
 
       if (error) {
-        console.error('Erro ao desativar membro:', error);
-        throw new Error(error.message || 'Erro ao desativar membro');
+        console.error('Erro ao remover membro:', error);
+        alert(`Erro ao remover membro: ${error.message}`);
+        return;
       }
 
+      alert('Membro removido com sucesso!');
       onRefresh();
     } catch (error) {
-      console.error('Erro ao desativar membro:', error);
+      console.error('Erro ao remover membro:', error);
+      alert('Erro ao remover membro. Tente novamente.');
     }
   };
 
