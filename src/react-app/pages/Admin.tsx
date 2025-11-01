@@ -7,6 +7,7 @@ import PaymentCard from '@/react-app/components/PaymentCard';
 import DateFilter from '@/react-app/components/DateFilter';
 import LoginModal from '@/react-app/components/LoginModal';
 import type { Payment, Member } from '@/shared/types';
+import { supabase } from '@/shared/supabase';
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -50,16 +51,11 @@ export default function Admin() {
     }
 
     try {
-      const response = await fetch('/api/admin/status', {
-        headers: {
-          'Authorization': `Bearer ${tokenToCheck}`
-        }
-      });
-      
-      if (response.ok) {
+      // Verificar se o token é válido (simplesmente verificar se existe)
+      const username = localStorage.getItem('admin_username');
+      if (username) {
         setIsAuthenticated(true);
         setAuthToken(tokenToCheck);
-        localStorage.setItem('admin_token', tokenToCheck);
       } else {
         setIsAuthenticated(false);
         setAuthToken(null);
@@ -76,22 +72,26 @@ export default function Admin() {
 
   const handleLogin = async (username: string, password: string) => {
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+      // Verificar credenciais no Supabase
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
 
-      const data = await response.json();
-
-      if (response.ok && data.token) {
-        setAuthToken(data.token);
-        setIsAuthenticated(true);
-        localStorage.setItem('admin_token', data.token);
-        return true;
-      } else {
-        throw new Error(data.error || 'Erro no login');
+      if (error || !data) {
+        console.error('Erro no login:', error);
+        return false;
       }
+
+      // Login bem-sucedido
+      const token = btoa(`${username}:${Date.now()}`);
+      setAuthToken(token);
+      setIsAuthenticated(true);
+      localStorage.setItem('admin_token', token);
+      localStorage.setItem('admin_username', username);
+      return true;
     } catch (error) {
       console.error('Erro no login:', error);
       return false;
@@ -99,37 +99,32 @@ export default function Admin() {
   };
 
   const handleLogout = async () => {
-    try {
-      if (authToken) {
-        await fetch('/api/admin/logout', { 
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-    } finally {
-      setIsAuthenticated(false);
-      setAuthToken(null);
-      localStorage.removeItem('admin_token');
-    }
+    setIsAuthenticated(false);
+    setAuthToken(null);
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_username');
   };
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [paymentsRes, membersRes] = await Promise.all([
-        fetch('/api/payments'),
-        fetch('/api/members')
+      // Buscar pagamentos e membros do Supabase
+      const [paymentsResult, membersResult] = await Promise.all([
+        supabase.from('payments').select('*').order('payment_date', { ascending: false }),
+        supabase.from('members').select('*').order('name', { ascending: true })
       ]);
       
-      const paymentsData = await paymentsRes.json();
-      const membersData = await membersRes.json();
-      
-      setPayments(paymentsData.payments || []);
-      setMembers(membersData.members || []);
+      if (paymentsResult.error) {
+        console.error('Erro ao buscar pagamentos:', paymentsResult.error);
+      } else {
+        setPayments(paymentsResult.data || []);
+      }
+
+      if (membersResult.error) {
+        console.error('Erro ao buscar membros:', membersResult.error);
+      } else {
+        setMembers(membersResult.data || []);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     } finally {
@@ -137,46 +132,18 @@ export default function Admin() {
     }
   };
 
-  const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
-    if (!authToken) {
-      throw new Error('Token de autenticação não encontrado');
-    }
-
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`,
-      ...options.headers
-    };
-
-    const response = await fetch(url, {
-      ...options,
-      headers
-    });
-
-    if (response.status === 401) {
-      // Token expirado ou inválido
-      setIsAuthenticated(false);
-      setAuthToken(null);
-      localStorage.removeItem('admin_token');
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
-
-    return response;
-  };
-
   const handleAddPayment = async (paymentData: { member_name: string; amount: number; payment_date: string }) => {
     try {
-      const response = await makeAuthenticatedRequest('/api/payments', {
-        method: 'POST',
-        body: JSON.stringify(paymentData)
-      });
+      const { error } = await supabase
+        .from('payments')
+        .insert([paymentData]);
 
-      if (response.ok) {
-        fetchData();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao adicionar pagamento');
+      if (error) {
+        console.error('Erro ao adicionar pagamento:', error);
+        throw new Error(error.message || 'Erro ao adicionar pagamento');
       }
+
+      fetchData();
     } catch (error) {
       console.error('Erro ao adicionar pagamento:', error);
       throw error;
@@ -185,17 +152,16 @@ export default function Admin() {
 
   const handleAddMember = async (memberData: { name: string; email?: string; phone?: string }) => {
     try {
-      const response = await makeAuthenticatedRequest('/api/members', {
-        method: 'POST',
-        body: JSON.stringify(memberData)
-      });
+      const { error } = await supabase
+        .from('members')
+        .insert([memberData]);
 
-      if (response.ok) {
-        fetchData();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao adicionar membro');
+      if (error) {
+        console.error('Erro ao adicionar membro:', error);
+        throw new Error(error.message || 'Erro ao adicionar membro');
       }
+
+      fetchData();
     } catch (error) {
       console.error('Erro ao adicionar membro:', error);
       throw error;
