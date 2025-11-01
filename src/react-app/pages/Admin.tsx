@@ -355,7 +355,6 @@ export default function Admin() {
           <MembersList 
             members={members} 
             onRefresh={fetchData}
-            makeAuthenticatedRequest={makeAuthenticatedRequest}
           />
         </div>
       </main>

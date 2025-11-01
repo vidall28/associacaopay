@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Users, Edit2, Trash2, Mail, Phone, Search } from 'lucide-react';
 import MemberModal from './MemberModal';
 import type { Member } from '@/shared/types';
+import { supabase } from '@/shared/supabase';
 
 interface MembersListProps {
   members: Member[];
   onRefresh: () => void;
-  makeAuthenticatedRequest: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
-export default function MembersList({ members, onRefresh, makeAuthenticatedRequest }: MembersListProps) {
+export default function MembersList({ members, onRefresh }: MembersListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,23 +22,24 @@ export default function MembersList({ members, onRefresh, makeAuthenticatedReque
     if (!editingMember) return;
 
     try {
-      const response = await makeAuthenticatedRequest(`/api/members/${editingMember.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
+      const { error } = await supabase
+        .from('members')
+        .update({
           name: memberData.name,
           email: memberData.email || null,
-          phone: memberData.phone || null
+          phone: memberData.phone || null,
+          updated_at: new Date().toISOString()
         })
-      });
+        .eq('id', editingMember.id);
 
-      if (response.ok) {
-        onRefresh();
-        setEditingMember(null);
-        setIsModalOpen(false);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao atualizar membro');
+      if (error) {
+        console.error('Erro ao atualizar membro:', error);
+        throw new Error(error.message || 'Erro ao atualizar membro');
       }
+
+      onRefresh();
+      setEditingMember(null);
+      setIsModalOpen(false);
     } catch (error) {
       console.error('Erro ao atualizar membro:', error);
       throw error;
@@ -49,16 +50,17 @@ export default function MembersList({ members, onRefresh, makeAuthenticatedReque
     if (!confirm('Tem certeza que deseja desativar este membro?')) return;
 
     try {
-      const response = await makeAuthenticatedRequest(`/api/members/${memberId}`, {
-        method: 'DELETE'
-      });
+      const { error } = await supabase
+        .from('members')
+        .update({ is_active: false })
+        .eq('id', memberId);
 
-      if (response.ok) {
-        onRefresh();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao desativar membro');
+      if (error) {
+        console.error('Erro ao desativar membro:', error);
+        throw new Error(error.message || 'Erro ao desativar membro');
       }
+
+      onRefresh();
     } catch (error) {
       console.error('Erro ao desativar membro:', error);
     }
