@@ -3,6 +3,7 @@ import { Wallet, Users, TrendingUp, Search, Calendar, Filter, X } from 'lucide-r
 
 import PaymentCard from '@/react-app/components/PaymentCard';
 import type { Payment } from '@/shared/types';
+import { supabase } from '@/shared/supabase';
 
 export default function Home() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -21,9 +22,17 @@ export default function Home() {
 
   const fetchPayments = async () => {
     try {
-      const paymentsRes = await fetch('/api/payments');
-      const paymentsData = await paymentsRes.json();
-      setPayments(paymentsData.payments || []);
+      // Buscar pagamentos do Supabase
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .order('payment_date', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar pagamentos:', error);
+      } else {
+        setPayments(data || []);
+      }
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     } finally {
