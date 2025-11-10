@@ -1,20 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, DollarSign, Calendar, User, ChevronDown } from 'lucide-react';
-import type { Member } from '@/shared/types';
+import type { Member, Payment } from '@/shared/types';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { member_name: string; amount: number; payment_date: string }) => Promise<void>;
   members?: Member[];
+  payment?: Payment | null;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSubmit, members = [] }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, onSubmit, members = [], payment = null }: PaymentModalProps) {
   const [formData, setFormData] = useState({
     member_name: '',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0]
   });
+
+  // Preencher formulário quando estiver editando
+  useEffect(() => {
+    if (payment) {
+      setFormData({
+        member_name: payment.member_name,
+        amount: payment.amount.toString(),
+        payment_date: payment.payment_date.split('T')[0]
+      });
+    } else {
+      setFormData({
+        member_name: '',
+        amount: '',
+        payment_date: new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [payment, isOpen]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
@@ -91,7 +109,7 @@ export default function PaymentModal({ isOpen, onClose, onSubmit, members = [] }
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-900">
-            Adicionar Pagamento
+            {payment ? 'Editar Pagamento' : 'Adicionar Pagamento'}
           </h3>
           <button
             onClick={onClose}

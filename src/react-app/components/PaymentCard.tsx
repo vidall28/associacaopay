@@ -1,11 +1,14 @@
-import { Calendar, DollarSign, CheckCircle } from 'lucide-react';
+import { Calendar, DollarSign, CheckCircle, Edit2, Trash2 } from 'lucide-react';
 import type { Payment } from '@/shared/types';
 
 interface PaymentCardProps {
   payment: Payment;
+  onEdit?: (payment: Payment) => void;
+  onDelete?: (paymentId: number) => void;
+  isAdmin?: boolean;
 }
 
-export default function PaymentCard({ payment }: PaymentCardProps) {
+export default function PaymentCard({ payment, onEdit, onDelete, isAdmin = false }: PaymentCardProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -32,6 +35,28 @@ export default function PaymentCard({ payment }: PaymentCardProps) {
             <p className="text-green-600 font-medium">Mensalidade Paga</p>
           </div>
         </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(payment)}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Editar pagamento"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(payment.id)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Remover pagamento"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">

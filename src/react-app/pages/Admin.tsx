@@ -18,6 +18,7 @@ export default function Admin() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [filters, setFilters] = useState({
     name: '',
     startDate: '',
@@ -134,19 +135,68 @@ export default function Admin() {
 
   const handleAddPayment = async (paymentData: { member_name: string; amount: number; payment_date: string }) => {
     try {
-      const { error } = await supabase
-        .from('payments')
-        .insert([paymentData]);
+      if (editingPayment) {
+        // Editar pagamento existente
+        const { error } = await supabase
+          .from('payments')
+          .update({
+            member_name: paymentData.member_name,
+            amount: paymentData.amount,
+            payment_date: paymentData.payment_date,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingPayment.id);
 
-      if (error) {
-        console.error('Erro ao adicionar pagamento:', error);
-        throw new Error(error.message || 'Erro ao adicionar pagamento');
+        if (error) {
+          console.error('Erro ao editar pagamento:', error);
+          throw new Error(error.message || 'Erro ao editar pagamento');
+        }
+
+        setEditingPayment(null);
+      } else {
+        // Adicionar novo pagamento
+        const { error } = await supabase
+          .from('payments')
+          .insert([paymentData]);
+
+        if (error) {
+          console.error('Erro ao adicionar pagamento:', error);
+          throw new Error(error.message || 'Erro ao adicionar pagamento');
+        }
       }
 
       fetchData();
     } catch (error) {
-      console.error('Erro ao adicionar pagamento:', error);
+      console.error('Erro ao processar pagamento:', error);
       throw error;
+    }
+  };
+
+  const handleEditPayment = (payment: Payment) => {
+    setEditingPayment(payment);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleDeletePayment = async (paymentId: number) => {
+    if (!confirm('Tem certeza que deseja remover este pagamento?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+
+      if (error) {
+        console.error('Erro ao remover pagamento:', error);
+        alert(`Erro ao remover pagamento: ${error.message}`);
+        return;
+      }
+
+      alert('Pagamento removido com sucesso!');
+      fetchData();
+    } catch (error) {
+      console.error('Erro ao remover pagamento:', error);
+      alert('Erro ao remover pagamento. Tente novamente.');
     }
   };
 
@@ -345,7 +395,13 @@ export default function Admin() {
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {filteredPayments.map((payment) => (
-                  <PaymentCard key={payment.id} payment={payment} />
+                  <PaymentCard 
+                    key={payment.id} 
+                    payment={payment}
+                    isAdmin={true}
+                    onEdit={handleEditPayment}
+                    onDelete={handleDeletePayment}
+                  />
                 ))}
               </div>
             )}
@@ -361,9 +417,13 @@ export default function Admin() {
 
       <PaymentModal
         isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
+        onClose={() => {
+          setIsPaymentModalOpen(false);
+          setEditingPayment(null);
+        }}
         onSubmit={handleAddPayment}
         members={members}
+        payment={editingPayment}
       />
 
       <MemberModal
